@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html>
+	<head></head>
+	<body>
+		<script>
+			function levenshtein (s1, s2) {
+				// Calculate Levenshtein distance between two strings  
+				// 
+				// version: 1009.2513
+				// discuss at: http://phpjs.org/functions/levenshtein
+				// +            original by: Carlos R. L. Rodrigues (http://www.jsfromhell.com)
+				// +            bugfixed by: Onno Marsman
+				// +             revised by: Andrea Giammarchi (http://webreflection.blogspot.com)
+				// + reimplemented by: Brett Zamir (http://brett-zamir.me)
+				// + reimplemented by: Alexander M Beedie
+				// *                example 1: levenshtein('Kevin van Zonneveld', 'Kevin van Sommeveld');
+				// *                returns 1: 3
+				if (s1 == s2) {
+					return 0;
+				}
+
+				var s1_len = s1.length;
+				var s2_len = s2.length;
+				if (s1_len === 0) {
+					return s2_len;
+				}
+				if (s2_len === 0) {
+					return s1_len;
+				}
+
+				// BEGIN STATIC
+				var split = false;
+				try{
+					split=!('0')[0];
+				} catch (e){
+					split=true; // Earlier IE may not support access by string index
+				}
+				// END STATIC
+				if (split){
+					s1 = s1.split('');
+					s2 = s2.split('');
+				}
+
+				var v0 = new Array(s1_len+1);
+				var v1 = new Array(s1_len+1);
+
+				var s1_idx=0, s2_idx=0, cost=0;
+				for (s1_idx=0; s1_idx<s1_len+1; s1_idx++) {
+					v0[s1_idx] = s1_idx;
+				}
+				var char_s1='', char_s2='';
+				for (s2_idx=1; s2_idx<=s2_len; s2_idx++) {
+					v1[0] = s2_idx;
+					char_s2 = s2[s2_idx - 1];
+
+					for (s1_idx=0; s1_idx<s1_len;s1_idx++) {
+						char_s1 = s1[s1_idx];
+						cost = (char_s1 == char_s2) ? 0 : 1;
+						var m_min = v0[s1_idx+1] + 1;
+						var b = v1[s1_idx] + 1;
+						var c = v0[s1_idx] + cost;
+						if (b < m_min) {
+						   m_min = b; }
+						if (c < m_min) {
+						   m_min = c; }
+						v1[s1_idx+1] = m_min;
+					}
+					var v_tmp = v0;
+					v0 = v1;
+					v1 = v_tmp;
+				}
+				return v0[s1_len];
+			}
+			
+			function HTMLParser(aHTMLString) {
+				var dom = document.implementation.createDocument("http://www.w3.org/1999/xhtml", "html", null),
+					div = document.createElement("div"); 
+				
+				div.innerHTML = aHTMLString;
+				dom.documentElement.appendChild(div);
+
+				return dom;
+			}
+
+			var ajax = function(o) {
+				var xhr = new XMLHttpRequest();
+				o.action = o.action || "GET";
+				xhr.onreadystatechange = function(data) {
+					if (xhr.readyState === 4) {
+						if (xhr.status === 200) {
+							o.success && o.success(xhr.responseText);
+						} else {
+							o.error && o.error();
+						}
+					}
+				};
+				
+				xhr.open(o.action, o.url, true);
+				xhr.send();
+			}
+			
+			var resident = {
+				'googleSearchHandler': function(data) {
+					var imdb_link = false,
+						item;
+					
+					for (item in data.items) {
+						if (data.items[item].title.indexOf(" - IMDb") !== -1) {
+							imdb_link = data.items[item].link;
+							break;
+						}
+					}
+
+					if (!imdb_link) {
+						resident.callback && resident.callback({'success': false});
+						return;
+					}
+
+					ajax({
+						'url': imdb_link,
+						'success': function(imdbHtml) {
+							var imdbDom = HTMLParser(imdbHtml),
+								rating, votes;
+							
+							if (!imdbDom) {
+								resident.callback && resident.callback({'success': false});
+								return;
+							}
+							
+							try {
+								rating = imdbDom.getElementsByClassName('rating-rating')[0].innerText.split("/")[0];
+								votes = imdbDom.getElementById("overview-top").childNodes[7].childNodes[7].innerText;
+								
+								resident.callback && resident.callback({
+									'success': true,
+									'rating': rating,
+									'votes': votes,
+									'imdb_link': imdb_link
+								});
+							} catch (e) {
+								resident.callback && resident.callback({'success': false});
+							}
+						},
+						'error': function() {
+							resident.callback && resident.callback({'success': false});
+						}
+					});
+				}
+			};
+
+			function fetchIMDBInfoFromGoogle(title, year) {
+				var google_api = "AIzaSyBsMvChJ97pjRG76gsljuHCg_ObdDIKnj8",
+					google_cx = "002436381719975320010:-nqmawm5b3k",
+					emb = document.createElement('script');
+								
+				emb.src = "https://www.googleapis.com/customsearch/v1?key=" + google_api + "&cx=" + google_cx + "&q=" + escape(title) + "+" + year + "&callback=resident.googleSearchHandler";
+				
+				document.body.appendChild(emb);
+			}
+
+			function fetchIMDBInfoFromAPI(title, year) {
+				ajax({
+					'url': 'http://www.imdbapi.com/?t=' + escape(title) + '&y=' + year,
+					'success': function(data) {
+						var result = {'success': false},
+							jsoned = false;
+						
+						try {
+							jsoned = JSON.parse(data);
+							if (jsoned && jsoned.Response != "Parse Error") {
+								
+								// Check if the movie's title is what we asked for
+								// if not, fallback on google/imdb
+								if (!confirmTitle(title, jsoned.Title)) {
+									fetchIMDBInfoFromGoogle(title, year);
+									return;
+								}
+								
+								result.success = true;
+								result.rating = jsoned.Rating;
+								result.votes = jsoned.Votes + ' votes';
+								result.imdb_link = "http://imdb.com/title/" + jsoned.ID;
+								
+								// succeed
+								resident.callback(result);
+								return;
+							}
+						} catch (e) {}
+						
+						// fallback on google/imdb in case of odd error
+						fetchIMDBInfoFromGoogle(title, year);
+					},
+					'error': function() {
+						fetchIMDBInfoFromGoogle(title, year);
+					}
+				});
+			}
+			
+			function confirmTitle(original, possible) {
+				if (possible != original) return false;
+				
+				if (levenshtein(original, possible) > 3) {
+					return false;
+				}
+				
+				return true;
+			}
+			
+			chrome.extension.onRequest.addListener(function(request, sender, callback) {
+				if (request.action === 'fetchIMDBInfo') {
+					resident.callback = callback;
+					
+					fetchIMDBInfoFromAPI(request.title, request.year || "");
+				}
+			});
+		</script>
+	</body>
+</html>

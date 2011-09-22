@@ -1,0 +1,18 @@
+{
+   "background_page": "background.html",
+   "content_scripts": [ {
+      "js": [ "imflixdb.js" ],
+      "matches": [ "http://movies.netflix.com/WiMovie/*", "http://movies.netflix.com/Movie/*", "http://netflix.com/Movie/*", "http://netflix.com/WiMovie/*", "http://www.netflix.ca/WiMovie/*", "http://ca.netflix.com/WiMovie/*", "http://ca.movies.netflix.com/WiMovie/*" ]
+   } ],
+   "description": "View IMDb ratings and links for movies on Netflix movie pages. IMflixDB adds a bit of additional convenience to Netflix!",
+   "icons": {
+      "128": "imflixdb128.png",
+      "16": "imflixdb16.png",
+      "48": "imflixdb48.png"
+   },
+   "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDaSS895knG5wL9S77l8S3zAgtn4b5KdrGsZpqvYnD6agFvngT41Ark19Hni7X691HAjuv6BgOfdq2/0G4GlxyRdTUUm36oq1vmlv3J2pFic81TTTAZfxQYxAN7vvrjofnsJeTN8ZlbZnEEnM0xXhAtpnCvmArntwaMqbgDABOcCwIDAQAB",
+   "name": "IMflixDB for Netflix",
+   "permissions": [ "http://www.imdbapi.com/", "http://www.googleapis.com/customsearch/", "http://www.imdb.com/title/" ],
+   "update_url": "http://clients2.google.com/service/update2/crx",
+   "version": "1.2.6"
+}
